@@ -20,20 +20,21 @@ class Prediction:
     model_version: str
 
 
-def load_model(path=MODEL_PATH) -> dict:
+def load_model(path=None) -> dict:
+    path = path or MODEL_PATH
     if not path.exists():
         raise ModelNotAvailableError("No trained model. Run: python -m app.ml.train")
     return joblib.load(path)
 
 
-def predict(text: str, path=MODEL_PATH) -> Prediction:
+def predict(text: str, path=None) -> Prediction:
     bundle = load_model(path)
     probs = bundle["pipeline"].predict_proba([text])[0]
     i = int(probs.argmax())
     return Prediction(str(bundle["pipeline"].classes_[i]), float(probs[i]), bundle["version"])
 
 
-def classify_event(db: Session, event: Event, path=MODEL_PATH) -> MLPrediction:
+def classify_event(db: Session, event: Event, path=None) -> MLPrediction:
     """Store a prediction. The event category only changes when confidence is high enough."""
     pred = predict(event.title, path)
     row = MLPrediction(event_id=event.id, label=pred.label, confidence=pred.confidence,

@@ -1,0 +1,162 @@
+from datetime import datetime
+from typing import Generic, Literal, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+
+T = TypeVar("T")
+Category = Literal["pricing_change", "product_launch", "partnership", "funding", "leadership_change",
+                   "regulatory_change", "acquisition", "expansion", "other"]
+RelType = Literal["competitor", "customer", "supplier", "partner", "stakeholder", "other"]
+
+
+class ORM(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Page(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    offset: int
+    limit: int
+
+
+class CompanyIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    website: HttpUrl | None = None
+    industry: str | None = Field(default=None, max_length=120)
+    description: str | None = None
+
+
+class CompanyUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    website: HttpUrl | None = None
+    industry: str | None = Field(default=None, max_length=120)
+    description: str | None = None
+
+
+class CompanyOut(ORM):
+    id: int
+    name: str
+    website: str | None
+    industry: str | None
+    description: str | None
+    is_demo: bool
+
+
+class SourceIn(BaseModel):
+    kind: Literal["rss", "html", "demo"]
+    url: str = Field(min_length=1, max_length=1000)
+    label: str | None = None
+
+
+class SourceOut(ORM):
+    id: int
+    company_id: int
+    kind: str
+    url: str
+    label: str | None
+    is_demo: bool
+    enabled: bool
+    last_status: str | None
+    last_error: str | None
+    last_collected_at: datetime | None
+
+
+class ObservationOut(ORM):
+    id: int
+    source_id: int
+    company_id: int
+    title: str
+    body: str
+    url: str | None
+    published_at: datetime | None
+    collected_at: datetime
+    is_demo: bool
+
+
+class EvidenceOut(ORM):
+    id: int
+    observation_id: int
+    excerpt: str | None
+    verification_status: str
+
+
+class PredictionOut(ORM):
+    id: int
+    label: str
+    confidence: float
+    model_version: str
+
+
+class RiskIn(BaseModel):
+    impact: float = Field(ge=0, le=10)
+    urgency: float = Field(ge=0, le=10)
+    strategic_relevance: float = Field(ge=0, le=10)
+    evidence_quality: float | None = Field(default=None, ge=0, le=10)
+
+
+class RiskOut(ORM):
+    id: int
+    event_id: int
+    impact: float
+    urgency: float
+    strategic_relevance: float
+    evidence_quality: float
+    overall_score: float
+    priority: str
+    explanation: str
+    created_at: datetime
+
+
+class EventOut(ORM):
+    id: int
+    company_id: int
+    title: str
+    category: str
+    status: str
+    occurred_at: datetime
+    is_demo: bool
+
+
+class EventDetail(EventOut):
+    evidence: list[EvidenceOut]
+    predictions: list[PredictionOut]
+    risk_assessments: list[RiskOut]
+
+
+class EventUpdate(BaseModel):
+    status: Literal["new", "reviewed", "dismissed"] | None = None
+    category: Category | None = None
+
+
+class FeedbackIn(BaseModel):
+    correct_category: Category | None = None
+    useful: bool | None = None
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackOut(ORM, FeedbackIn):
+    id: int
+    event_id: int
+
+
+class RelationshipIn(BaseModel):
+    related_company_id: int
+    relationship_type: RelType
+    verification_status: Literal["unverified", "verified"] = "unverified"
+    evidence_observation_id: int | None = None
+
+
+class RelationshipOut(ORM):
+    id: int
+    company_id: int
+    related_company_id: int
+    relationship_type: str
+    verification_status: str
+    evidence_observation_id: int | None
+
+
+class SettingsIO(BaseModel):
+    timezone: str = Field(default="UTC", max_length=64)
+    display_name: str | None = Field(default=None, max_length=120)
+    show_demo_data: bool = True
