@@ -1,6 +1,6 @@
 # SentinelIQ (base project, in progress)
 
-AI-powered competitive intelligence platform. **Status: Stages 1-4 of 7 complete** (models, migration, seed, risk scoring, company/source services, ingestion, dedup, event extraction, ML classifier, evidence checks, risk assessment service).
+AI-powered competitive intelligence platform. **Status: Stages 1-5 of 7 complete** (models, migration, seed, risk scoring, company/source services, ingestion, dedup, event extraction, ML classifier, evidence checks, risk assessment service).
 All seeded data is FICTIONAL demo data (`is_demo=true`).
 
 ## Backend setup (Windows PowerShell)
@@ -17,7 +17,7 @@ ruff check .
 Linux/macOS: replace the activate line with `source .venv/bin/activate`.
 
 ## Not yet built
-Frontend, scheduler, notifications, reports, full docs. See `docs/ROADMAP.md` once created.
+Scheduler, notifications, reports, full docs. See `docs/ROADMAP.md` once created.
 
 ## ML (stage 3)
 ```powershell
@@ -38,3 +38,15 @@ uvicorn app.main:app --reload     # http://127.0.0.1:8000/docs (OpenAPI), prefix
 events (filters, detail, update, process, feedback), risk assessments, analytics (overview, timeline, categories,
 priorities, companies), settings. **Not yet implemented:** reports, workflows, notifications, AI insights,
 decision support. Errors use `{"error": {"code", "message"}}` (404 / 409 / 422 / 503 when no model is trained).
+
+## Frontend (stage 5)
+```powershell
+cd frontend
+npm install
+npm run dev          # http://localhost:5173 (proxies /api to http://127.0.0.1:8000)
+npm run typecheck; npm run lint; npm run build
+```
+Start the backend first (see API section). Pages: Overview (charts from live API data), Companies, Company profile
+(sources, collect, events, observations, relationships), Intelligence feed, Event detail, Risk assessments, Settings.
+**Reports and Workflows pages are honest placeholders**; their backends arrive in stage 6.
+Decision support on the event page is also a labeled placeholder. Settings "show demo data" is stored but not yet applied.
