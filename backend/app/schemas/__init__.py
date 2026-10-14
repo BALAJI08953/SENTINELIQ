@@ -160,3 +160,90 @@ class SettingsIO(BaseModel):
     timezone: str = Field(default="UTC", max_length=64)
     display_name: str | None = Field(default=None, max_length=120)
     show_demo_data: bool = True
+
+
+class ReportCreate(BaseModel):
+    company_id: int
+    start: datetime | None = None
+    end: datetime | None = None
+
+
+class ReportOut(ORM):
+    id: int
+    report_type: str
+    title: str
+    company_id: int | None
+    content_json: dict
+    content_markdown: str
+    is_demo: bool
+    created_at: datetime
+
+
+class WorkflowIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    enabled: bool = True
+    company_ids: list[int] = Field(default_factory=list)
+    categories: list[Category] = Field(default_factory=list)
+    min_priority: Literal["low", "medium", "high", "critical"] = "low"
+    report_type: Literal["daily", "weekly", "company", "high_priority"] = "daily"
+
+
+class WorkflowPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    enabled: bool | None = None
+    company_ids: list[int] | None = None
+    categories: list[Category] | None = None
+    min_priority: Literal["low", "medium", "high", "critical"] | None = None
+    report_type: Literal["daily", "weekly", "company", "high_priority"] | None = None
+
+
+class WorkflowOut(ORM):
+    id: int
+    name: str
+    enabled: bool
+    company_ids: list[int]
+    categories: list[str]
+    min_priority: str
+    report_type: str
+
+
+class ScheduleIn(BaseModel):
+    mode: Literal["daily", "interval"]
+    time_of_day: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    interval_minutes: int | None = Field(default=None, ge=1)
+    timezone: str = Field(default="UTC", max_length=64)
+
+
+class ScheduleOut(ORM):
+    id: int
+    workflow_id: int
+    mode: str
+    time_of_day: str | None
+    interval_minutes: int | None
+    timezone: str
+
+
+class RecipientIn(BaseModel):
+    channel: Literal["email", "whatsapp"]
+    address: str = Field(min_length=1, max_length=300)
+    authorized: bool = False
+
+
+class RecipientOut(ORM):
+    id: int
+    schedule_id: int
+    channel: str
+    address: str
+    authorized: bool
+
+
+class DeliveryLogOut(ORM):
+    id: int
+    schedule_id: int | None
+    report_id: int | None
+    channel: str
+    recipient: str
+    provider: str
+    status: str
+    detail: str | None
+    created_at: datetime

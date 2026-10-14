@@ -1,11 +1,12 @@
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Activity, ArrowUpRight, CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useFetch } from '../hooks/useFetch'
-import { Async, Card, DemoTag, Empty, Stat, Tag } from '../components/ui'
+import { Async, Card, DemoTag, Empty, Stat, Tag, linkClass } from '../components/ui'
 import type { EventItem, Overview as Ov, Page } from '../types'
 import { fmtDate, label } from '../utils/format'
 
-const chart = (h = 220) => ({ width: '100%', height: h })
+const chart = (height = 220) => ({ width: '100%', height })
 
 export default function Overview() {
   const ov = useFetch<Ov>('/analytics/overview')
@@ -16,38 +17,42 @@ export default function Overview() {
   const recent = useFetch<Page<EventItem>>('/events', { limit: 6 })
   return (
     <>
-      <h1 className="text-xl font-bold">Overview</h1>
+      <header className="rounded-lg border border-cyan-300/20 bg-[#111B32] p-5 text-white shadow-[0_22px_60px_rgba(0,0,0,0.3)] md:flex md:items-end md:justify-between md:gap-6">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-xs text-cyan-100">
+            <Activity className="h-3.5 w-3.5" />Live intelligence workspace
+          </div>
+          <h1 className="text-3xl font-semibold tracking-tight">SentinelIQ competitive intelligence</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Detect competitor changes, inspect evidence, compare business impact, and turn approved recommendations into follow-up work.</p>
+        </div>
+        <Link to="/feed" className="mt-4 inline-flex items-center gap-1 text-sm text-cyan-200 hover:text-white md:mt-0">Open intelligence feed <ArrowUpRight className="h-4 w-4" /></Link>
+      </header>
       <Async state={ov}>{(o) => (
         <>
-          {o.demo_events > 0 && <div className="rounded border border-violet-200 bg-violet-50 p-2 text-sm text-violet-800">
-            {o.demo_events} of {o.events} events are fictional demo data; {o.real_events} come from real collection.</div>}
+          {o.events === 0 && <div className="rounded-lg border border-[#263650] bg-[#111B32] p-3 text-sm text-slate-300">No recent intelligence is available. Connect a permitted source to begin monitoring.</div>}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Stat name="Companies monitored" value={o.companies} />
-            <Stat name="Observations" value={o.observations} />
-            <Stat name="New events" value={o.new_events} />
-            <Stat name="Awaiting verification" value={o.claims_awaiting_verification} />
-            <Stat name="High priority" value={o.high_priority} tone="text-orange-600" />
-            <Stat name="Critical" value={o.critical} tone="text-red-600" />
-            <Stat name="Sources OK / error" value={`${o.sources_ok} / ${o.sources_error}`} />
-            <Stat name="Never collected" value={o.sources_never_collected} />
+            <Stat name="Monitored companies" value={o.companies} />
+            <Stat name="Changes detected" value={o.events} />
+            <Stat name="Potential threats" value={o.high_priority + o.critical} tone="text-amber-300" />
+            <Stat name="Awaiting approval" value={o.recommendations_awaiting_approval ?? o.new_events} tone="text-cyan-200" />
           </div>
         </>
       )}</Async>
       <div className="grid gap-4 md:grid-cols-2">
-        <Card title="Event timeline"><Async state={tl}>{(d) => d.length === 0 ? <Empty title="No events yet" /> :
-          <div style={chart()}><ResponsiveContainer><LineChart data={d}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="date" fontSize={11} /><YAxis allowDecimals={false} /><Tooltip /><Line dataKey="events" stroke="#0f172a" /></LineChart></ResponsiveContainer></div>}</Async></Card>
-        <Card title="Events by category"><Async state={cat}>{(d) =>
-          <div style={chart()}><ResponsiveContainer><BarChart data={d.map((x) => ({ ...x, category: label(x.category) }))}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="category" fontSize={10} interval={0} angle={-30} textAnchor="end" height={60} /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="count" fill="#475569" /></BarChart></ResponsiveContainer></div>}</Async></Card>
+        <Card title="Competitor activity timeline"><Async state={tl}>{(d) => d.length === 0 ? <Empty title="No events yet" /> :
+          <div style={chart()}><ResponsiveContainer><LineChart data={d}><CartesianGrid stroke="#263650" strokeDasharray="3 3" /><XAxis dataKey="date" fontSize={11} stroke="#94A3B8" /><YAxis allowDecimals={false} stroke="#94A3B8" /><Tooltip contentStyle={{ background: '#111B32', border: '1px solid #263650', color: '#F8FAFC' }} /><Line dataKey="events" stroke="#22D3EE" strokeWidth={2} /></LineChart></ResponsiveContainer></div>}</Async></Card>
+        <Card title="Changes by category"><Async state={cat}>{(d) =>
+          <div style={chart()}><ResponsiveContainer><BarChart data={d.map((x) => ({ ...x, category: label(x.category) }))}><CartesianGrid stroke="#263650" strokeDasharray="3 3" /><XAxis dataKey="category" fontSize={10} interval={0} angle={-30} textAnchor="end" height={60} stroke="#94A3B8" /><YAxis allowDecimals={false} stroke="#94A3B8" /><Tooltip contentStyle={{ background: '#111B32', border: '1px solid #263650', color: '#F8FAFC' }} /><Bar dataKey="count" fill="#3B82F6" /></BarChart></ResponsiveContainer></div>}</Async></Card>
         <Card title="Risk priority distribution"><Async state={pri}>{(d) =>
-          <div style={chart()}><ResponsiveContainer><BarChart data={d}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="priority" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="count" fill="#ea580c" /></BarChart></ResponsiveContainer></div>}</Async>
-          <p className="mt-2 text-xs text-slate-500">Scores are a decision-support heuristic, not a validated loss prediction.</p></Card>
-        <Card title="Company activity"><Async state={act}>{(d) =>
-          <div style={chart()}><ResponsiveContainer><BarChart data={d}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" fontSize={10} /><YAxis allowDecimals={false} /><Tooltip /><Legend /><Bar dataKey="events" fill="#0f172a" /><Bar dataKey="observations" fill="#94a3b8" /></BarChart></ResponsiveContainer></div>}</Async></Card>
+          <div style={chart()}><ResponsiveContainer><BarChart data={d}><CartesianGrid stroke="#263650" strokeDasharray="3 3" /><XAxis dataKey="priority" stroke="#94A3B8" /><YAxis allowDecimals={false} stroke="#94A3B8" /><Tooltip contentStyle={{ background: '#111B32', border: '1px solid #263650', color: '#F8FAFC' }} /><Bar dataKey="count" fill="#8B5CF6" /></BarChart></ResponsiveContainer></div>}</Async>
+          <p className="mt-2 text-xs text-slate-400">Scores are a decision-support heuristic, not a validated loss prediction.</p></Card>
+        <Card title="Latest monitoring status"><Async state={act}>{(d) =>
+          <div className="space-y-2 text-sm">{d.map((x) => <div key={x.name} className="flex items-center gap-2 rounded-md border border-[#263650] bg-[#0B1020]/50 p-2"><CheckCircle2 className="h-4 w-4 text-cyan-300" /><span className="font-medium text-slate-100">{x.name}</span><span className="ml-auto text-slate-400">{x.events} findings, {x.observations} observations</span></div>)}</div>}</Async></Card>
       </div>
       <Card title="Recent intelligence findings"><Async state={recent}>{(p) => p.items.length === 0 ? <Empty title="No findings yet" hint="Collect a source to create events." /> :
-        <ul className="divide-y">{p.items.map((e) => (
-          <li key={e.id} className="flex flex-wrap items-center gap-2 py-2"><Link className="font-medium text-blue-700 hover:underline" to={`/events/${e.id}`}>{e.title}</Link>
-            <Tag>{label(e.category)}</Tag><DemoTag demo={e.is_demo} /><span className="ml-auto text-xs text-slate-500">{fmtDate(e.occurred_at)}</span></li>))}</ul>}</Async></Card>
+        <ul className="divide-y divide-[#263650]">{p.items.map((e) => (
+          <li key={e.id} className="flex flex-wrap items-center gap-2 py-2"><Link className={linkClass} to={`/events/${e.id}`}>{e.title}</Link>
+            <Tag>{label(e.category)}</Tag><DemoTag demo={e.is_demo} /><span className="ml-auto text-xs text-slate-400">{fmtDate(e.occurred_at)}</span></li>))}</ul>}</Async></Card>
     </>
   )
 }

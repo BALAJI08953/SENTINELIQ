@@ -20,6 +20,7 @@ from app.schemas import (
 from app.services.companies import NotFoundError
 from app.services.events.extraction import extract_event
 from app.services.evidence.verify import verify_event_evidence
+from app.services.intelligence import assess_event_once
 from app.services.risk.assess import assess_event
 
 router = APIRouter(tags=["intelligence"])
@@ -103,9 +104,10 @@ def process_event(event_id: int, db: Session = Depends(get_db)):
     e = _event(db, event_id)
     pred = classify_event(db, e)
     counts = verify_event_evidence(db, e)
+    risk_status = assess_event_once(db, e)
     return {"prediction": {"label": pred.label, "confidence": pred.confidence,
                            "model_version": pred.model_version},
-            "category": e.category, "evidence": counts}
+            "category": e.category, "evidence": counts, "risk_status": risk_status}
 
 
 @router.post("/events/{event_id}/risk", response_model=RiskOut, status_code=201)

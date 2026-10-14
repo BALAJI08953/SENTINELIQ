@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 import joblib
 from sqlalchemy.orm import Session
@@ -21,13 +22,15 @@ class Prediction:
 
 
 def load_model(path=None) -> dict:
-    path = path or MODEL_PATH
+    path = Path(path) if path else MODEL_PATH
     if not path.exists():
         raise ModelNotAvailableError("No trained model. Run: python -m app.ml.train")
     return joblib.load(path)
 
 
 def predict(text: str, path=None) -> Prediction:
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("text must be a non-empty string")
     bundle = load_model(path)
     probs = bundle["pipeline"].predict_proba([text])[0]
     i = int(probs.argmax())

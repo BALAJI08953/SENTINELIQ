@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import PageParams
 from app.core.database import get_db
-from app.models import CompanyRelationship, Event, Observation
+from app.models import CompanyRelationship, Event, Observation, Source
 from app.schemas import (
     CompanyIn,
     CompanyOut,
@@ -20,6 +20,7 @@ from app.schemas import (
 from app.services import companies as svc
 from app.services.events.extraction import extract_events
 from app.services.ingestion.service import collect_source
+from app.services.intelligence import process_events_pipeline
 
 router = APIRouter(tags=["companies"])
 
@@ -79,6 +80,13 @@ def company_sources(company_id: int, db: Session = Depends(get_db)):
     return svc.list_sources(db, company_id)
 
 
+@router.get("/sources", response_model=Page[SourceOut])
+def list_sources(p: PageParams = Depends(), db: Session = Depends(get_db)):
+    stmt = select(Source).order_by(Source.last_collected_at.desc().nullslast(), Source.id.desc())
+    total = len(db.scalars(select(Source)).all())
+    return Page(items=db.scalars(stmt.offset(p.offset).limit(p.limit)).all(), total=total, offset=p.offset, limit=p.limit)
+
+
 @router.post("/companies/{company_id}/sources", response_model=SourceOut, status_code=201)
 def add_source(company_id: int, body: SourceIn, db: Session = Depends(get_db)):
     return svc.add_source(db, company_id, body.kind, body.url, body.label, is_demo=body.kind == "demo")
@@ -98,8 +106,12 @@ def collect(source_id: int, extract: bool = True, db: Session = Depends(get_db))
         raise svc.NotFoundError(f"Source {source_id} not found")
     res = collect_source(db, src)
     events = extract_events(db, res.new_observation_ids) if extract else []
+    processing = process_events_pipeline(db, events)
     return {"status": res.status, "fetched": res.fetched, "new": res.new, "duplicates": res.duplicates,
-            "error": res.error, "events_created": len(events)}
+            "error": res.error, "events_created": len(events),
+            "events_processed": len(processing),
+            "model_unavailable": sum(x.prediction_status == "model_unavailable" for x in processing),
+            "risk_assessments_created": sum(x.risk_status == "assessed" for x in processing)}
 
 
 @router.get("/companies/{company_id}/relationships", response_model=list[RelationshipOut])

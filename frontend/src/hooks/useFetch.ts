@@ -13,7 +13,7 @@ export function useFetch<T>(url: string | null, params?: Record<string, unknown>
     setLoading(true)
     api.get<T>(url, { params: JSON.parse(key) })
       .then((r) => { if (!cancelled) { setData(r.data); setError(null) } })
-      .catch((e) => { if (!cancelled) setError(errMsg(e)) })
+      .catch((e) => { if (!cancelled) { setData(null); setError(errMsg(e)) } })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [url, key, tick])

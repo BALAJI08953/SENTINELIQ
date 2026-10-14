@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Company, Source
+from app.services.ingestion.normalize import normalize_url
 
 
 class NotFoundError(Exception):
@@ -69,7 +70,8 @@ def add_source(db: Session, company_id: int, kind: str, url: str, label: str | N
         raise ValueError("kind must be rss, html or demo")
     if kind != "demo" and not url.startswith(("http://", "https://")):
         raise ValueError("url must start with http:// or https://")
-    s = Source(company_id=company_id, kind=kind, url=url, label=label, is_demo=is_demo)
+    normalized_url = normalize_url(url) or url.strip()
+    s = Source(company_id=company_id, kind=kind, url=normalized_url, label=label, is_demo=is_demo)
     db.add(s)
     _commit(db, "Source URL already registered for this company")
     return s

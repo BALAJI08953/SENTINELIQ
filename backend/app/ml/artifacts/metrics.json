@@ -1,5 +1,22 @@
 {
-  "version": "tfidf-lr-20261013105258",
+  "version": "tfidf-lr-20261013173831",
+  "task": "competitive_event_classification",
+  "dataset": {
+    "path": "sample_data\\training_examples.csv",
+    "fingerprint_sha256": "89809827d07a2642bdab9f7a6edf0d9f0908dd418c14a2fe722cff41fc8a9f55",
+    "rows": 216
+  },
+  "model_type": "tfidf_logistic_regression",
+  "preprocessing": {
+    "text": "html_strip_lowercase_punctuation_normalization",
+    "vectorizer": "tfidf_1_2_grams"
+  },
+  "trained_at": "2026-10-13T17:38:31.160309+00:00",
+  "baseline": {
+    "model_type": "most_frequent_dummy",
+    "accuracy": 0.1111111111111111,
+    "macro_f1": 0.022222222222222223
+  },
   "n_test": 54,
   "accuracy": 1.0,
   "macro_f1": 1.0,

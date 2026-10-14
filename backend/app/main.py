@@ -3,14 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.core.config import settings
 from app.ml.predict import ModelNotAvailableError
 from app.services.companies import ConflictError, NotFoundError
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="SentinelIQ API", version="0.1.0",
-                  description="Competitive intelligence. Demo records are fictional and flagged is_demo.")
-    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    app = FastAPI(title="SentinelIQ API", version="0.2.0",
+                  description="SentinelIQ competitive intelligence API with the SENTRIX grounded assistant.")
+    app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                        allow_methods=["*"], allow_headers=["*"])
 
     def err(status: int, code: str):

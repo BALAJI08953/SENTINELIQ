@@ -4,6 +4,11 @@ __pycache__/
 .venv/
 node_modules/
 dist/
+frontend/.npm-cache/
+backend/.deps/
 backend/app/ml/artifacts/*.joblib
+backend/app/ml/artifacts/*.json
+data/
+datasets/
 .pytest_cache/
 .ruff_cache/

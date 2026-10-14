@@ -1,41 +1,7 @@
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-import app.models  # noqa: F401
-import scripts.seed as seed_mod
-from app.core.database import Base, get_db
-from app.main import create_app
 from app.ml import predict as predict_mod
 from app.ml.train import train
 
 P = "/api/v1"
-
-
-@pytest.fixture()
-def client():
-    eng = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    Base.metadata.create_all(eng)
-    Session = sessionmaker(bind=eng, expire_on_commit=False)
-    app = create_app()
-
-    def override():
-        with Session() as s:
-            yield s
-
-    app.dependency_overrides[get_db] = override
-    app.state.Session, app.state.engine = Session, eng
-    return TestClient(app)
-
-
-@pytest.fixture()
-def seeded(client, monkeypatch):
-    monkeypatch.setattr(seed_mod, "SessionLocal", client.app.state.Session)
-    monkeypatch.setattr(seed_mod, "engine", client.app.state.engine)
-    seed_mod.seed()
-    return client
 
 
 def test_health(client):
@@ -128,3 +94,75 @@ def test_observations_search_and_settings(seeded):
     assert seeded.put(f"{P}/settings", json={"timezone": "Nowhere/Land"}).status_code == 422
     assert seeded.put(f"{P}/settings", json={"timezone": "Asia/Kolkata"}).status_code == 200
     assert seeded.get(f"{P}/settings").json()["timezone"] == "Asia/Kolkata"
+
+
+def test_reports_are_generated_from_persisted_data_and_exported(seeded):
+    created = seeded.post(f"{P}/reports", json={"company_id": 1})
+    assert created.status_code == 201
+    report = created.json()
+    assert report["company_id"] == 1
+    assert report["content_json"]["events"]
+    assert "Important events" in report["content_markdown"]
+
+    listed = seeded.get(f"{P}/reports?company_id=1").json()
+    assert listed["total"] >= 1
+    report_id = report["id"]
+    markdown = seeded.get(f"{P}/reports/{report_id}/export?format=markdown")
+    assert markdown.status_code == 200
+    assert markdown.headers["content-type"].startswith("text/markdown")
+    assert b"Northwind Analytics" in markdown.content
+    exported_json = seeded.get(f"{P}/reports/{report_id}/export?format=json")
+    assert exported_json.status_code == 200
+    assert exported_json.json()["company"]["name"] == "Northwind Analytics"
+    assert seeded.get(f"{P}/reports/{report_id}/export?format=csv").status_code == 422
+
+
+def test_deterministic_insights_and_decision_support(seeded):
+    eid = seeded.get(f"{P}/events").json()["items"][0]["id"]
+    insight = seeded.get(f"{P}/events/{eid}/insights")
+    assert insight.status_code == 200
+    body = insight.json()
+    assert body["provider"] == "deterministic_local"
+    assert body["source_facts"]
+    assert "uncertainties" in body
+
+    options = seeded.get(f"{P}/events/{eid}/decision-support")
+    assert options.status_code == 200
+    assert len(options.json()["options"]) == 3
+    assert "not automatic recommendations" in options.json()["disclaimer"]
+
+
+def test_workflows_schedules_mock_delivery_and_logs(seeded):
+    created = seeded.post(f"{P}/workflows", json={
+        "name": "Demo daily review",
+        "company_ids": [1],
+        "categories": ["pricing_change"],
+        "min_priority": "medium",
+        "report_type": "daily",
+    })
+    assert created.status_code == 201
+    wid = created.json()["id"]
+    assert seeded.patch(f"{P}/workflows/{wid}", json={"enabled": False}).json()["enabled"] is False
+
+    bad_schedule = seeded.post(f"{P}/workflows/{wid}/schedules", json={"mode": "interval", "timezone": "UTC"})
+    assert bad_schedule.status_code == 422
+    schedule = seeded.post(f"{P}/workflows/{wid}/schedules", json={
+        "mode": "daily", "time_of_day": "08:30", "timezone": "Asia/Kolkata",
+    })
+    assert schedule.status_code == 201
+    sid = schedule.json()["id"]
+
+    recipient = seeded.post(f"{P}/schedules/{sid}/recipients", json={
+        "channel": "email", "address": "demo@example.invalid", "authorized": True,
+    })
+    assert recipient.status_code == 201
+    provider = seeded.get(f"{P}/notification-providers").json()["providers"][0]
+    assert provider["name"] == "mock" and provider["status"] == "available"
+
+    run = seeded.post(f"{P}/workflows/{wid}/execute")
+    assert run.status_code == 200
+    assert run.json()["reports_created"] == 1
+    assert run.json()["simulated"] == 1
+    logs = seeded.get(f"{P}/delivery-logs").json()
+    assert logs["total"] >= 1
+    assert logs["items"][0]["provider"] == "mock"

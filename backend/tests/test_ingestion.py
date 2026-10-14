@@ -7,9 +7,10 @@ from app.services import companies as svc
 from app.services.change_detection.pages import page_change_count
 from app.services.events.extraction import extract_event, extract_events
 from app.services.ingestion import providers
-from app.services.ingestion.normalize import content_hash, normalize_text
+from app.services.ingestion.normalize import content_hash, normalize_text, normalize_url
 from app.services.ingestion.providers import HTMLProvider, ProviderError, RawItem, RSSProvider
 from app.services.ingestion.service import collect_source
+from app.services.intelligence import process_events_pipeline
 
 RSS = b"""<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>
 <item><title>Acme launches X</title><link>https://e.invalid/1</link>
@@ -36,6 +37,7 @@ def test_normalization_and_hash_stability():
     assert normalize_text("<p>Big \n  launch</p>") == "Big launch"
     assert content_hash("A  Title", "<b>x</b>") == content_hash("a title", "x")
     assert content_hash("a", "x") != content_hash("a", "y")
+    assert normalize_url("HTTPS://Example.COM/news?a=2&b=1#fragment") == "https://example.com/news?a=2&b=1"
 
 
 def test_collect_and_dedupe(db, source):
@@ -108,3 +110,22 @@ def test_event_extraction_links_evidence_once(db, source):
     assert extract_events(db, r.new_observation_ids) == []
     with pytest.raises(ValueError):
         extract_event(db, 9999)
+
+
+def test_pipeline_is_safe_to_rerun_without_duplicate_risk(db, source, monkeypatch, tmp_path):
+    r = collect_source(db, source, FakeProvider([RawItem("Acme raises funds", "Series B", "https://e.invalid/3")]))
+    event = extract_event(db, r.new_observation_ids[0])
+    assert event is not None
+
+    from app.ml import predict as predict_mod
+    from app.ml.train import train
+
+    model_path = tmp_path / "model.joblib"
+    train(model_path=model_path, metrics_path=tmp_path / "metrics.json")
+    monkeypatch.setattr(predict_mod, "MODEL_PATH", model_path)
+    first = process_events_pipeline(db, [event])[0]
+    second = process_events_pipeline(db, [event])[0]
+    assert first.risk_status == "assessed"
+    assert second.risk_status == "already_assessed"
+    assert second.prediction_status == "already_classified"
+    assert len(event.risk_assessments) == 1

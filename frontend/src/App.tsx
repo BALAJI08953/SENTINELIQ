@@ -4,11 +4,18 @@ import { Empty } from './components/ui'
 import Companies from './pages/Companies'
 import CompanyProfile from './pages/CompanyProfile'
 import EventDetail from './pages/EventDetail'
+import EventsEvidence from './pages/EventsEvidence'
 import Feed from './pages/Feed'
+import Analytics from './pages/Analytics'
+import MLLab from './pages/MLLab'
 import Overview from './pages/Overview'
-import Planned from './pages/Planned'
+import Reports from './pages/Reports'
 import Risk from './pages/Risk'
 import Settings from './pages/Settings'
+import Sources from './pages/Sources'
+import Watchlists from './pages/Watchlists'
+import Workflows from './pages/Workflows'
+import Sentrix from './pages/Sentrix'
 
 export default function App() {
   return (
@@ -17,12 +24,18 @@ export default function App() {
         <Route index element={<Overview />} />
         <Route path="companies" element={<Companies />} />
         <Route path="companies/:id" element={<CompanyProfile />} />
+        <Route path="watchlists" element={<Watchlists />} />
         <Route path="feed" element={<Feed />} />
+        <Route path="events" element={<EventsEvidence />} />
         <Route path="events/:id" element={<EventDetail />} />
         <Route path="risk" element={<Risk />} />
-        <Route path="reports" element={<Planned title="Reports" hint="Report generation and export are planned for stage 6; the backend has no report endpoints yet." />} />
-        <Route path="workflows" element={<Planned title="Workflows" hint="Scheduling and delivery workflows are planned for stage 6; the backend has no workflow endpoints yet." />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="workflows" element={<Workflows />} />
+        <Route path="ml-lab" element={<MLLab />} />
+        <Route path="sources" element={<Sources />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="sentrix" element={<Sentrix />} />
         <Route path="*" element={<Empty title="Page not found" />} />
       </Route>
     </Routes>

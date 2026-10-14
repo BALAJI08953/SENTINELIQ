@@ -1,52 +1,73 @@
-# SentinelIQ (base project, in progress)
+# SentinelIQ (local MVP)
 
-AI-powered competitive intelligence platform. **Status: Stages 1-5 of 7 complete** (models, migration, seed, risk scoring, company/source services, ingestion, dedup, event extraction, ML classifier, evidence checks, risk assessment service).
-All seeded data is FICTIONAL demo data (`is_demo=true`).
+AI-powered competitive intelligence platform. Seeded records are fictional demo data (`is_demo=true`).
 
 ## Backend setup (Windows PowerShell)
+
 ```powershell
 cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 alembic upgrade head
-python -m scripts.seed          # add --reset to reseed (drops all tables)
+python -m scripts.seed
+python -m app.ml.train
 python -m pytest -q
 ruff check .
+uvicorn app.main:app --reload
 ```
-Linux/macOS: replace the activate line with `source .venv/bin/activate`.
 
-## Not yet built
-Scheduler, notifications, reports, full docs. See `docs/ROADMAP.md` once created.
+The API is available at `http://127.0.0.1:8000/docs` with the `/api/v1` prefix.
 
-## ML (stage 3)
+## Current MVP workflow
+
+Collect a source with `POST /api/v1/sources/{source_id}/collect`. New observations are normalized,
+deduplicated, linked to candidate events, evidence-checked, classified when a trained model is available,
+and given one explainable heuristic risk assessment. Missing model artifacts are reported in the collection
+response and do not block evidence or risk persistence.
+
+Reports are generated from persisted company data:
+
 ```powershell
-cd backend
-python -m app.ml.train      # trains TF-IDF + Logistic Regression, writes app/ml/artifacts/
-python -m app.ml.evaluate   # prints accuracy, macro-F1, per-class P/R, confusion matrix
+curl.exe -X POST http://127.0.0.1:8000/api/v1/reports `
+  -H "Content-Type: application/json" `
+  -d '{"company_id":1}'
+curl.exe "http://127.0.0.1:8000/api/v1/reports/1/export?format=markdown" -o report.md
+curl.exe "http://127.0.0.1:8000/api/v1/reports/1/export?format=json" -o report.json
 ```
-**Caveat:** the bundled dataset is synthetic and template-generated; the same templates appear in the
-train and test splits, so scores near 1.0 are inflated and prove nothing about real-world accuracy.
-Evidence "verified" means the cited excerpt exists in a stored observation, not that the claim is true.
 
-## API (stage 4)
+## ML
+
 ```powershell
-cd backend
-uvicorn app.main:app --reload     # http://127.0.0.1:8000/docs (OpenAPI), prefix /api/v1
+python -m app.ml.train
+python -m app.ml.evaluate
 ```
-24 paths: health, companies (CRUD, events, timeline, sources, relationships), source collection, observations,
-events (filters, detail, update, process, feedback), risk assessments, analytics (overview, timeline, categories,
-priorities, companies), settings. **Not yet implemented:** reports, workflows, notifications, AI insights,
-decision support. Errors use `{"error": {"code", "message"}}` (404 / 409 / 422 / 503 when no model is trained).
 
-## Frontend (stage 5)
+The bundled dataset is synthetic and template-generated. Held-out metrics are demonstration metrics only
+and do not establish real-world accuracy. Evidence verification means that a cited excerpt exists in stored
+data; it does not establish that the source claim is true.
+
+## Frontend
+
 ```powershell
 cd frontend
 npm install
-npm run dev          # http://localhost:5173 (proxies /api to http://127.0.0.1:8000)
-npm run typecheck; npm run lint; npm run build
+npm run typecheck
+npm run lint
+npm run build
+npm run dev
 ```
-Start the backend first (see API section). Pages: Overview (charts from live API data), Companies, Company profile
-(sources, collect, events, observations, relationships), Intelligence feed, Event detail, Risk assessments, Settings.
-**Reports and Workflows pages are honest placeholders**; their backends arrive in stage 6.
-Decision support on the event page is also a labeled placeholder. Settings "show demo data" is stored but not yet applied.
+
+The frontend includes Overview, Companies, company profiles, Feed, Event detail, Risk, Reports, Settings,
+Watchlists, Events & Evidence, Analytics, ML Lab, and Sources. The primary workspace uses localStorage-backed
+prototype records for UI exploration; the ML Lab calls the real backend ML endpoints and does not fake training
+results.
+The mock provider records simulated deliveries only; it never sends real email or WhatsApp messages.
+
+To train with a supplied CSV, use the required `text,label` columns:
+
+```powershell
+python -m app.ml.train --data C:\path\your_dataset.csv --model app\ml\artifacts\model.joblib --metrics app\ml\artifacts\metrics.json
+```
+
+See `docs/ROADMAP.md` and `docs/CODEX_HANDOFF.md` for verified scope and remaining work.

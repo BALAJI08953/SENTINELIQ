@@ -58,6 +58,18 @@ def test_missing_model_raises_not_fake_success(tmp_path):
         predict_mod.predict("anything", tmp_path / "nope.joblib")
 
 
+def test_blank_text_is_rejected_before_model_loading(tmp_path):
+    with pytest.raises(ValueError, match="non-empty"):
+        predict_mod.predict("   ", tmp_path / "nope.joblib")
+
+
+def test_training_cli_dataset_validation(tmp_path):
+    data = tmp_path / "bad.csv"
+    data.write_text("text,label\n,pricing_change\nhello,pricing_change\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="at least two"):
+        train(path=data, model_path=tmp_path / "m.joblib", metrics_path=tmp_path / "metrics.json")
+
+
 def test_classify_event_persists_prediction(db, trained):
     path, _ = trained
     c = Company(name="A")

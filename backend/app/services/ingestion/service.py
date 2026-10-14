@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Observation, Source
-from app.services.ingestion.normalize import content_hash, normalize_text
+from app.services.ingestion.normalize import content_hash, normalize_text, normalize_url
 from app.services.ingestion.providers import ProviderError, SourceProvider, provider_for
 
 
@@ -44,7 +44,7 @@ def collect_source(db: Session, source: Source, provider: SourceProvider | None 
             res.duplicates += 1
             continue
         obs = Observation(source_id=source.id, company_id=source.company_id, title=title, body=body,
-                          url=it.url, content_hash=digest, published_at=it.published_at,
+                          url=normalize_url(it.url), content_hash=digest, published_at=it.published_at,
                           collected_at=now, is_demo=source.is_demo)
         db.add(obs)
         db.flush()
